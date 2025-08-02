@@ -43,13 +43,22 @@ contract Repay {
         // Task 1.1
         // msg.sender will pay for the interest on borrow.
         // Transfer the difference (debt - balance in this contract)
+        // balance of token
+        uint256 balance = IERC20(token).balanceOf(address(this));
+        uint256 debt = getVariableDebt(token);
+        if (debt > balance) {
+            IERC20.transferFrom(msg.sender, address(this), debt - balance);
+        }
 
         // Task 1.2 - Approve the pool contract to transfer debt from this contract
+        IERC20(token).approve(address(pool), debt);
 
         // Task 1.3 - Repay all the debt to Aave V3
         // All the debt can be repaid by setting the amount to repay to a number
         // greater than or equal to the current debt
+        uint256 repaid = pool.repay(token, type(uint256).max, 2, address(this));
 
         // Task 1.4 - Return the amount that was repaid
+        return repaid;
     }
 }
