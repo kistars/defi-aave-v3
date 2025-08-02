@@ -12,3 +12,5 @@ line_length = 80
 
 [profile.solution]
 remappings = ["@exercises/=src/solutions/"]
+
+[dotenv]
