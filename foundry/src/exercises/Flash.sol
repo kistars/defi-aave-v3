@@ -11,8 +11,9 @@ contract Flash {
 
     // Task 1 - Initiate flash loan
     function flash(address token, uint256 amount) public {
-        bytes memory data = abi.encode(msg.sender);
-        pool.flashLoanSimple(msg.sender, token, amount, data, 0);
+        pool.flashLoanSimple(
+            address(this), token, amount, abi.encode(msg.sender), 0
+        );
     }
 
     // Task 2 - Repay flash loan
