@@ -62,6 +62,7 @@ contract LongShort is Aave, Swap {
         // Task 1.6
         // - Swap borrowed token to collateral token
         // - Send swapped token to msg.sender
+        // 把借出的钱换成想要的资产
         IERC20(params.borrowToken).approve(address(router), params.borrowAmount);
         return swap(
             params.borrowToken,
@@ -101,6 +102,7 @@ contract LongShort is Aave, Swap {
             msg.sender, address(this), params.collateralAmount
         );
         // Task 2.2 - Swap collateral to borrowed token
+        // 将资产换成要偿还的代币, e.g. USDC
         IERC20(params.collateralToken).approve(
             address(router), params.collateralAmount
         );
@@ -119,10 +121,12 @@ contract LongShort is Aave, Swap {
         // - If the amount to repay is greater that the amount swapped,
         //   then transfer the difference from msg.sender
         uint256 debt = getVariableDebt(params.borrowToken, msg.sender);
-        uint256 debtToRepay = Math.min(debt, params.maxDebtToRepay);
+        uint256 debtToRepay = Math.min(debt, params.maxDebtToRepay); // 实际偿还的债务
         uint256 repayAmount = 0;
+        // 如果swap的资产不够偿还
         if (debtToRepay > swapAmount) {
             repayAmount = debtToRepay - swapAmount;
+            // 从用户账户里划转
             IERC20(params.borrowToken).transferFrom(
                 msg.sender, address(this), repayAmount
             );
@@ -131,6 +135,7 @@ contract LongShort is Aave, Swap {
         repay(params.borrowToken, debtToRepay, msg.sender);
 
         // Task 2.4 - Withdraw collateral to msg.sender
+        // 把质押token转回pool
         IERC20 aToken = IERC20(getATokenAddress(params.collateralToken));
         aToken.transferFrom(
             msg.sender,
@@ -139,11 +144,13 @@ contract LongShort is Aave, Swap {
                 aToken.balanceOf(msg.sender), params.maxCollateralToWithdraw
             )
         );
+        // 销毁aToken，取出质押物
         uint256 withdrawn = withdraw(
             params.collateralToken, params.maxCollateralToWithdraw, msg.sender
         );
 
         // Task 2.5 - Transfer profit = swapped amount - repaid amount
+        // 归还贷款后剩余的利润
         uint256 balance = IERC20(params.borrowToken).balanceOf(address(this));
         if (balance > 0) {
             IERC20(params.borrowToken).transfer(msg.sender, balance);
