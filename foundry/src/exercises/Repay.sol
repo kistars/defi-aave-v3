@@ -47,7 +47,7 @@ contract Repay {
         uint256 balance = IERC20(token).balanceOf(address(this));
         uint256 debt = getVariableDebt(token);
         if (debt > balance) {
-            IERC20.transferFrom(msg.sender, address(this), debt - balance);
+            IERC20(token).transferFrom(msg.sender, address(this), debt - balance);
         }
 
         // Task 1.2 - Approve the pool contract to transfer debt from this contract
