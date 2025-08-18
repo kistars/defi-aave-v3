@@ -29,5 +29,6 @@ contract Supply {
         address aToken = pool.getReserveData(token).aTokenAddress;
         // Task 2.2 - Get the balance of aToken for this contract
         uint256 balanceOfAToken = IERC20(aToken).balanceOf(address(this));
+        return balanceOfAToken;
     }
 }
