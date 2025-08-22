@@ -23,16 +23,22 @@ contract SupplyTest is Test {
     }
 
     function test_supply() public {
-        uint256 wethBalBefore = weth.balanceOf(address(this));
+        uint256 wethBalBefore = weth.balanceOf(address(this)); // test=1e18, target=0, aave=0
+        uint256 aWethBalBefore = weth.balanceOf(address(aWeth)); // test=0, target=0, aave=0
         weth.approve(address(target), 1e18);
         target.supply(WETH, 1e18);
-        uint256 wethBalAfter = weth.balanceOf(address(this));
+        uint256 wethBalAfter = weth.balanceOf(address(this)); // test=0, target=0, aave=1e18
 
         assertEq(
             wethBalBefore - wethBalAfter, 1e18, "WETH balance of test contract"
         );
         assertEq(weth.balanceOf(address(target)), 0, "WETH balance of target");
         assertGt(aWeth.balanceOf(address(target)), 0, "aWETH balance of target");
+        assertEq(
+            weth.balanceOf(address(aWeth)) - aWethBalBefore,
+            1e18,
+            "WETH balance of aWETH"
+        ); // 把钱转给aWeth合约地址，所以aWeth合约地址的WETH余额增加1e18
         assertEq(
             target.getSupplyBalance(WETH),
             aWeth.balanceOf(address(target)),
