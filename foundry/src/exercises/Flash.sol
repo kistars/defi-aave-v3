@@ -11,9 +11,13 @@ contract Flash {
 
     // Task 1 - Initiate flash loan
     function flash(address token, uint256 amount) public {
-        pool.flashLoanSimple(
-            address(this), token, amount, abi.encode(msg.sender), 0
-        );
+        pool.flashLoanSimple({
+            receiverAddress: address(this), // 收钱的对象
+            asset: token, // 借什么币
+            amount: amount, // 借多少
+            params: abi.encode(msg.sender), // 交易发起者
+            referralCode: 0
+        });
     }
 
     // Task 2 - Repay flash loan
@@ -32,7 +36,7 @@ contract Flash {
 
         // Task 2.3 - Decode caller from params and transfer
         // flash loan fee from this caller
-        address owner = abi.decode(params, (address));
+        address owner = abi.decode(params, (address)); // 交易发起者
         IERC20(asset).transferFrom(owner, address(this), fee);
 
         // Task 2.4 - Approve the pool to spend flash loaned amount + fee
