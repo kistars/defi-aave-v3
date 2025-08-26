@@ -31,25 +31,47 @@ contract LongShort is Aave, Swap {
         returns (uint256 collateralAmountOut)
     {
         // Task 1.1 - Check that params.minHealthFactor is greater than 1e18
+        require(params.minHealthFactor > 1e18, "minum health factor");
 
         // Task 1.2 - Transfer collateral from msg.sender
+        IERC20(params.collateralToken).transferFrom(
+            msg.sender, address(this), params.collateralAmount
+        );
 
         // Task 1.3
         // - Approve and supply collateral to Aave
         // - Send aToken to msg.sender
         // 会把aToken发送给onBehalfOf, e.g. msg.sender
+        IERC20(params.collateralToken).approve(
+            address(pool), params.collateralAmount
+        );
+        supply(params.collateralToken, params.collateralAmount, msg.sender);
 
         // Task 1.4
         // - Borrow token from Aave
         // - Borrow on behalf of msg.sender
         // 以msg.sender的名义借钱，实际上借款是到本合约上
+        borrow(params.borrowToken, params.borrowAmount, msg.sender);
 
         // Task 1.5 - Check that health factor of msg.sender is > params.minHealthFactor
+        require(
+            getHealthFactor(msg.sender) > params.minHealthFactor,
+            "low health factor"
+        );
 
         // Task 1.6
         // - Swap borrowed token to collateral token
         // - Send swapped token to msg.sender
         // 把借出的钱换成想要的资产
+        IERC20(params.borrowToken).approve(address(router), params.borrowAmount);
+        return swap({
+            tokenIn: params.borrowToken,
+            tokenOut: params.collateralToken,
+            amountIn: params.borrowAmount,
+            amountOutMin: params.minSwapAmountOut,
+            receiver: msg.sender,
+            data: params.swapData
+        });
     }
 
     struct CloseParams {
@@ -78,6 +100,20 @@ contract LongShort is Aave, Swap {
         // Task 2.1 - Transfer collateral from msg.sender into this contract
         // Task 2.2 - Swap collateral to borrowed token
         // 将资产换成要偿还的代币, e.g. USDC
+        IERC20(params.collateralToken).transferFrom(
+            msg.sender, address(this), params.collateralAmount
+        );
+        IERC20(params.collateralToken).approve(
+            address(router), params.collateralAmount
+        );
+        uint256 amountOut = swap({
+            tokenIn: params.collateralToken,
+            tokenOut: params.borrowToken,
+            amountIn: params.collateralAmount,
+            amountOutMin: params.minSwapAmountOut,
+            receiver: address(this),
+            data: params.swapData
+        });
 
         // Task 2.3
         // - Repay borrowed token
@@ -85,15 +121,45 @@ contract LongShort is Aave, Swap {
         // - If the amount to repay is greater that the amount swapped,
         //   then transfer the difference from msg.sender
         // 如果swap的资产不够偿还
+        uint256 debtToRepay = Math.min(
+            getVariableDebt(params.borrowToken, msg.sender),
+            params.maxDebtToRepay
+        );
+        IERC20(params.borrowToken).approve(address(pool), debtToRepay);
+        uint256 repayAmount = 0;
+        if (debtToRepay > amountOut) {
+            // msg.sender repays for the difference
+            repayAmount = debtToRepay - amountOut;
+            IERC20(params.borrowToken).transferFrom(
+                msg.sender, address(this), repayAmount
+            );
+        }
+        repay(params.borrowToken, debtToRepay, msg.sender);
 
         // Task 2.4 - Withdraw collateral to msg.sender
         // 把质押token转回pool
         // 销毁aToken，取出质押物
+        IERC20 aToken = IERC20(getATokenAddress(params.collateralToken));
+        aToken.transferFrom(
+            msg.sender,
+            address(this),
+            Math.min(
+                aToken.balanceOf(msg.sender), params.maxCollateralToWithdraw
+            )
+        );
+        uint256 withdrawn = withdraw(
+            params.collateralToken, params.maxCollateralToWithdraw, msg.sender
+        );
 
         // Task 2.5 - Transfer profit = swapped amount - repaid amount
         // 归还贷款后剩余的利润
+        uint256 bal = IERC20(params.borrowToken).balanceOf(address(this));
+        if (bal > 0) {
+            IERC20(params.borrowToken).transfer(msg.sender, bal);
+        }
 
         // Task 2.6 - Return amount of collateral withdrawn,
         //            debt repaid and profit from closing this position
+        return (withdrawn, repayAmount, bal);
     }
 }
