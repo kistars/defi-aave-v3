@@ -25,12 +25,21 @@ contract Withdraw {
     // can withdraw
     function getSupplyBalance(address token) public view returns (uint256) {
         // Task 1.1 - Get the aToken address from the pool contract
+        address aToken = pool.getReserveData(token).aTokenAddress;
+
         // Task 1.2 - Get the balance of aToken that this contract has
+        return IERC20(aToken).balanceOf(address(this));
     }
 
     // Task 2 - Withdraw all of underlying token from Aave V3
     function withdraw(address token) public returns (uint256) {
         // Task 2.1 - Withdraw all of underlying token from Aave V3
+        uint256 amount = pool.withdraw({
+            asset: token,
+            amount: type(uint256).max,
+            to: address(this)
+        });
         // Task 2.2 - Return the amount that was withdrawn
+        return amount;
     }
 }
